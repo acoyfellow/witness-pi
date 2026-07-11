@@ -1,0 +1,40 @@
+{
+  "name": "witness-pi",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A verdict the agent does not author. Independent verifier gate for Pi tool calls.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jordan Coeyman",
+  "repository": "https://github.com/acoyfellow/witness-pi",
+  "main": "src/extension.ts",
+  "exports": {
+    ".": "./src/extension.ts",
+    "./gate": "./src/gate.ts",
+    "./registry": "./src/registry.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./src/extension.ts"
+    ]
+  },
+  "scripts": {
+    "check": "biome check src tests verifiers && tsc --noEmit && bun test tests",
+    "test": "bun test tests",
+    "format": "biome format --write src tests verifiers"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.80.0"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.1.14",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3"
+  }
+}
