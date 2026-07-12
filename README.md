@@ -51,15 +51,35 @@ witness: runs the test
 
 ## Does it actually work?
 
-Yes, and the tests prove it fails when it should:
+Three levels of proof, weakest to strongest:
 
-- **9 tests pass.**
-- It blocks the three real mistakes I made while building it: a secret typed
-  into code, unsafe input handling, and a tool claiming more permission than it
-  uses.
-- One test matters most: when the work *can't* pass the bar, `witness` keeps it
-  blocked instead of quietly letting it through. A checker that always says
-  "pass" is theater. These can say no.
+1. **13 unit tests pass.** They block the three real mistakes I made while
+   building it (a secret typed into code, unsafe input handling, a tool
+   claiming more permission than it uses) and allow known-good work. One test
+   matters most: when the work *can't* pass the bar, `witness` keeps it blocked
+   instead of quietly letting it through. A checker that always says "pass" is
+   theater. These can say no.
+
+2. **A test loads the extension the way the agent does** — imports it, hands it
+   the same object the agent runtime does, and fires a real action through the
+   handler it registered. That proves the wiring, not just the checker.
+
+3. **A real agent session was actually blocked.** I asked a live agent to save
+   a recipe that over-declared its permissions. It got stopped with:
+
+   ```
+   witness[recipe-safety] blocked pantry: recipe 'witness_live_probe'
+   declares machine.shell but only returns a string; use workspace.none
+   ```
+
+   Every verdict is written to `~/.pi/witness/receipts.jsonl`, so a block
+   leaves a timestamped record on disk:
+
+   ```json
+   {"tool":"pantry","verifier":"recipe-safety",
+    "verdict":{"ok":false,"detail":"...declares machine.shell but only returns a string..."},
+    "at":"2026-07-12T10:41:14.814Z"}
+   ```
 
 ## What it does not do
 
