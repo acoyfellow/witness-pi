@@ -193,6 +193,16 @@ describe('RB-1b: round-2 evasions (secret in any field, whitespace, namespaced t
   test('clean recipe still allowed after all the tightening', async () => {
     expect(await ev({ action: 'push', recipe: strRecipe(clean) })).toBeUndefined();
   });
+
+  test('round-3: namespaced tools gate, hyphenated/substring names do NOT', async () => {
+    const badCode = strRecipe({ ...clean, code: `const k="${secret}";` });
+    for (const tool of ['functions.pantry', 'mcp__pantry', 'pantry.push', 'ns:pantry']) {
+      expect((await ev({ action: 'push', recipe: badCode }, tool))?.block).toBe(true);
+    }
+    for (const tool of ['my-pantry-tool', 'pantryhelper', 'xpantry']) {
+      expect(await ev({ action: 'push', recipe: badCode }, tool)).toBeUndefined();
+    }
+  });
 });
 
 describe('RB-2: schema is signed', () => {

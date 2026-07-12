@@ -37,8 +37,10 @@ function toolMatches(ruleTool: string, eventTool: string): boolean {
   const rt = norm(ruleTool);
   const et = norm(eventTool);
   if (et === rt) return true;
-  // namespaced: functions.pantry / mcp__pantry / pantry.push
-  return new RegExp(`(^|[._:/-]|__)${rt}([._:/-]|__|$)`).test(et);
+  // namespaced with a real separator only: functions.pantry / mcp__pantry /
+  // pantry.push / ns:pantry / ns/pantry. Do NOT treat '-' as a separator, or
+  // ordinary hyphenated names like 'my-pantry-tool' false-positive (round-3).
+  return new RegExp(`(^|[._:/]|__)${rt}([._:/]|__|$)`).test(et);
 }
 
 // Core decision, extracted for direct unit testing without a live Pi.

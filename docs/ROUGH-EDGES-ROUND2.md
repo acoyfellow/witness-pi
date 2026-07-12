@@ -86,6 +86,25 @@ classified honestly:
   contract, not arbitrary hostile re-wrappings of the event envelope. If the
   host framework ever changes the envelope, that's a host-level concern.
 
+## Round-3 re-dogfood (attack the fixes) — 33 cases, 5 holes
+
+**FIXED (real):**
+- regex false-positive: `my-pantry-tool` wrongly matched the `pantry` rule
+  (treated `-` as a namespace separator). Tightened: only `.`/`:`/`/`/`__` are
+  namespace separators, not `-`. Verified: `functions.pantry`/`mcp__pantry`/
+  `ns:pantry` gate; `my-pantry-tool`/`pantryhelper`/`xpantry` do not.
+
+**OUT OF SCOPE (documented, not fixed) — KL-1 boundary, again:**
+- 4 secret-scan evasions all require an in-memory hostile OBJECT: a root
+  `toJSON()` returning clean bytes, a non-enumerable property, a Symbol-keyed
+  field, or a stateful getter. witness gates a `tool_call` whose recipe arrives
+  as a **JSON string over the MCP wire** — by the time it reaches the gate it has
+  already been JSON-serialized, so `toJSON`/non-enumerable/Symbol/getter tricks
+  cannot survive transport. These are reachable only by a DIRECT JS caller
+  handing `evaluate()`/`recipeSafety()` a live hostile object, not by the real
+  Pi path. Same class as KL-1: recipe-safety is a syntactic screen on the
+  serialized recipe, not a runtime taint tracker. Documented; not chased.
+
 ## Priority
 1. RB-1 fail-open normalization (the one that matters — a gate that fails OPEN is
    the worst failure mode for this tool).
