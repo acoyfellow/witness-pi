@@ -73,16 +73,25 @@ describe('live wiring: extension loaded the way Pi loads it', () => {
     expect(result).toBeUndefined(); // not blocked
   });
 
-  test('the block left a real receipt on disk', () => {
+  test('the block left a real SIGNED receipt on disk that verifies independently', async () => {
+    const { verifyReceipt } = await import('../src/ref-receipt.ts');
     expect(existsSync(receiptsPath)).toBe(true);
     const lines = readFileSync(receiptsPath, 'utf8').trim().split('\n').filter(Boolean);
     const records = lines.map((l) => JSON.parse(l));
-    // at least one failing verdict recorded for the leaky recipe
-    const fail = records.find((r) => r.verdict?.ok === false);
+    // receipts are now ref-signed portable receipts (ref/e23-portable-receipt@1)
+    const fail = records.find((r) => r.receipt?.result === 'fail');
     expect(fail).toBeTruthy();
-    expect(fail.tool).toBe('pantry');
-    expect(fail.verifier).toBe('recipe-safety');
-    // and at least one passing verdict for the clean recipe
-    expect(records.some((r) => r.verdict?.ok === true)).toBe(true);
+    expect(fail.schema).toBe('ref/e23-portable-receipt@1');
+    expect(fail.receipt.tool).toBe('pantry');
+    expect(fail.receipt.verifier).toBe('recipe-safety');
+    // the signature verifies with only {receipt, signature, publicKey}
+    expect(verifyReceipt(fail)).toBe(true);
+    // tampering the verdict breaks verification
+    const tampered = { ...fail, receipt: { ...fail.receipt, result: 'pass' } };
+    expect(verifyReceipt(tampered)).toBe(false);
+    // and at least one passing verdict for the clean recipe, also signed+valid
+    const pass = records.find((r) => r.receipt?.result === 'pass');
+    expect(pass).toBeTruthy();
+    expect(verifyReceipt(pass)).toBe(true);
   });
 });

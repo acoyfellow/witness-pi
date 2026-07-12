@@ -9,7 +9,8 @@ import { recipeBacktest } from '../verifiers/recipe-backtest.ts';
 import { recipeSafety } from '../verifiers/recipe-safety.ts';
 import { installWitness } from './gate.ts';
 import * as registry from './registry.ts';
-import type { GateRule } from './types.ts';
+import { signVerdict } from './ref-receipt.ts';
+import type { GateRule, Verdict } from './types.ts';
 
 // Every verdict (pass or fail) is appended here so a live block leaves disk
 // evidence and the self-audit can compute a real catch-rate. The path is read
@@ -18,11 +19,35 @@ export function receiptsPath(): string {
   return process.env.WITNESS_RECEIPTS ?? join(homedir(), '.pi', 'witness', 'receipts.jsonl');
 }
 
-export function writeReceipt(record: unknown): void {
+export function writeReceipt(record: {
+  tool: string;
+  verifier: string;
+  verdict: Verdict;
+  observation?: string;
+  at: string;
+}): void {
   try {
     const path = receiptsPath();
     mkdirSync(dirname(path), { recursive: true });
-    appendFileSync(path, `${JSON.stringify(record)}\n`);
+    // ref engine (folded in): sign the verdict into a portable, third-party-
+    // verifiable receipt (ref/e23-portable-receipt@1). Falls back to the raw
+    // record only if signing throws, so logging never breaks a session.
+    let line: unknown = record;
+    try {
+      const portable = signVerdict(
+        {
+          tool: record.tool,
+          verifier: record.verifier,
+          actionId: `${record.tool}:${record.at}`,
+          observation: record.observation ?? '',
+        },
+        record.verdict,
+      );
+      line = { ...portable, at: record.at };
+    } catch {
+      // keep the unsigned record as a fallback
+    }
+    appendFileSync(path, `${JSON.stringify(line)}\n`);
   } catch {
     // receipts are best-effort; never break a session over logging
   }
@@ -32,7 +57,22 @@ export const DEFAULT_RULES: GateRule[] = [
   {
     tool: 'pantry',
     when: (input) => input.action === 'push',
-    artifactOf: (input) => input.recipe,
+    // The MCP transport delivers `recipe` as a JSON STRING (pantry coerces it in
+    // execute(), but the tool_call gate fires before that). So parse a string
+    // recipe here; also accept an already-object recipe or flattened fields.
+    artifactOf: (input) => {
+      const r = input.recipe;
+      if (typeof r === 'string') {
+        const s = r.trim();
+        if (s.startsWith('{')) {
+          try { return JSON.parse(s); } catch { return r; }
+        }
+        return r;
+      }
+      if (r && typeof r === 'object') return r;
+      if (typeof input.name === 'string' && typeof input.code === 'string') return input;
+      return r; // undefined -> recipe-safety fails closed (unknown shape)
+    },
     verifiers: ['recipe-safety'],
   },
 ];

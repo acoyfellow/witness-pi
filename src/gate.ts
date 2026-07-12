@@ -12,11 +12,16 @@ import type { GateRule, Verdict } from './types.ts';
 
 export type WitnessOptions = {
   rules: GateRule[];
-  /** Called with every verdict (pass or fail) for receipts/self-audit. */
+  /**
+   * Called with every verdict (pass or fail) for receipts/self-audit. The
+   * `observation` is the canonical string the verifier judged, so the receipt
+   * sink (ref-receipt) can bind + sign it into a portable receipt.
+   */
   onVerdict?: (record: {
     tool: string;
     verifier: string;
     verdict: Verdict;
+    observation: string;
     at: string;
   }) => void;
 };
@@ -34,9 +39,10 @@ export async function evaluate(
     if (rule.tool !== event.toolName) continue;
     if (rule.when && !rule.when(event.input)) continue;
     const artifact = rule.artifactOf(event.input);
+    const observation = safeStringify(artifact);
     for (const name of rule.verifiers) {
       const verdict = await registry.get(name)(artifact);
-      options.onVerdict?.({ tool: event.toolName, verifier: name, verdict, at: now() });
+      options.onVerdict?.({ tool: event.toolName, verifier: name, verdict, observation, at: now() });
       if (!verdict.ok) {
         return {
           block: true,
@@ -46,6 +52,10 @@ export async function evaluate(
     }
   }
   return undefined; // no rule blocked — allow
+}
+
+function safeStringify(v: unknown): string {
+  try { return JSON.stringify(v) ?? String(v); } catch { return String(v); }
 }
 
 // Install the gate on a Pi ExtensionAPI (loose type to avoid a hard dep here).
