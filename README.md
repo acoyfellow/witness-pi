@@ -63,17 +63,21 @@ It runs the real gate over a bad and a good action and prints:
    bad  push -> BLOCKED: witness[recipe-safety] blocked pantry: recipe 'leaky' embeds a hardcoded secret
    good push -> ALLOWED
 2. THE VERDICT IS A SIGNED RECEIPT (ref/e23-portable-receipt@1)
-   result=fail  keyId=witness-b6253625  signature=0DLx98E/l42HLzg0SenpObAy...
+   result=fail  keyId=witness-...  signature=...
 3. A STRANGER RE-VERIFIES IT (no witness code, only node:crypto + public key)
    independent verify -> VALID
 4. TAMPERING IS CAUGHT (flip result fail->pass)
    tampered verify -> INVALID (rejected)
+5. AUTHORSHIP IS PINNED (trust a key, reject all others)
+   trusted-key verify -> ENFORCED
 
-PROVEN: the agent cannot decide, cannot forge, cannot tamper.
+PROVEN: the agent cannot decide, cannot forge, cannot tamper;
+        and only a trusted key is accepted.
 ```
 
 That is the whole claim, executable: **the agent can't decide its own work is
-done, can't forge a passing verdict, and can't tamper one after the fact.**
+done, can't forge a passing verdict, can't tamper one after the fact, and a
+verdict only counts if it came from a key you trust.**
 
 ## Why the verdict is trustworthy
 
@@ -94,12 +98,11 @@ reviewer, a CI gate, an auditor) can re-check offline and cannot be forged.
 
 ## The other layers of proof
 
-- **13 unit tests pass.** They block the three real mistakes made while building
-  it (a secret in code, unsafe input handling, a tool over-declaring
-  permission), allow known-good work, and — the one that matters — keep work
-  *blocked* when it can't pass. A checker that always says "pass" is theater;
-  these can say no. One test verifies the signed receipt and proves tampering
-  fails.
+- **35 tests pass**, including regression tests for every hole found across three
+  adversarial dogfood rounds (see `docs/ROUGH-EDGES*.md`). They block the real
+  mistakes, allow known-good work, and — the one that matters — keep work
+  *blocked* when it can't pass, and **fail closed** on any shape the gate can't
+  read. A checker that always says "pass" is theater; these can say no.
 - **A test loads the extension the way Pi does** — imports it, hands it the same
   object the runtime does, fires a real action through the registered handler.
   Proves the wiring, not just the checker.
@@ -108,17 +111,6 @@ reviewer, a CI gate, an auditor) can re-check offline and cannot be forged.
 - **It runs capability-separated on a fresh Cloudflare account** — see
   [examples/fresh-account-e2e](examples/fresh-account-e2e/): the signing key
   lives where the agent can't reach it, proven end-to-end on a throwaway account.
-
-## What it does not do
-
-- **It only watches the actions you point it at.** By default that's one. The
-  agent can still run other commands that `witness` never sees. This is a
-  pattern shown on one gate, not a wall around everything.
-- **A checker is trusted code that runs on your machine.** Don't wire in a
-  checker you didn't read.
-- **A checker that never catches anything is dead weight.** `witness` records
-  how often it blocks so you can delete it if it earns nothing. See
-  [docs/self-audit.md](docs/self-audit.md).
 
 ## Install
 
@@ -129,11 +121,28 @@ git clone https://github.com/acoyfellow/witness-pi \
   ~/.pi/agent/extensions/witness
 ```
 
-## Run the tests
+Run the tests with `bun install && bun test`, or the one-command proof with
+`bun run prove`.
 
-```sh
-bun install
-bun test
-```
+## What it does not do (read this)
+
+- **It only watches the actions you point it at.** By default that's one. The
+  agent can still run other commands `witness` never sees. This is a gate, not a
+  sandbox.
+- **The built-in `recipe-safety` checker is a cheap syntactic screen, not a
+  secret scanner.** It catches the honest mistake (a key pasted into a recipe)
+  and one split-prefix evasion. A motivated evader (base64, char codes, fetch a
+  key at runtime) gets past it — we dogfooded this and confirmed it. Don't rely
+  on it to stop exfiltration; use it to catch slips.
+- **A checker is trusted code that runs on your machine.** Don't wire in a
+  checker you didn't read. A malicious checker is your own code running.
+- **A verdict "verifies" two different ways.** Without a trusted-key list, it
+  proves only that the receipt wasn't *tampered*. To prove a *trusted* witness
+  signed it, pass the public keys you accept (`verifyReceipt(r, trustedKeys)`);
+  hold the signing key where the agent can't read it (see
+  [examples/fresh-account-e2e](examples/fresh-account-e2e/)).
+- **A checker that never catches anything is dead weight.** `witness` records
+  how often it blocks so you can delete it if it earns nothing. See
+  [docs/self-audit.md](docs/self-audit.md).
 
 MIT.
