@@ -56,7 +56,12 @@ export function writeReceipt(record: {
 export const DEFAULT_RULES: GateRule[] = [
   {
     tool: 'pantry',
-    when: (input) => input.action === 'push',
+    // case-insensitive + whitespace/NUL-trimmed: don't let `PUSH`, ` push `, or
+    // `push\0` dodge the gate (RB-1 / round-2).
+    when: (input) =>
+      String(input.action ?? '')
+        .replace(/[\s\0]+/g, '')
+        .toLowerCase() === 'push',
     // The MCP transport delivers `recipe` as a JSON STRING (pantry coerces it in
     // execute(), but the tool_call gate fires before that). So parse a string
     // recipe here; also accept an already-object recipe or flattened fields.
@@ -73,6 +78,7 @@ export const DEFAULT_RULES: GateRule[] = [
         }
         return r;
       }
+      if (Array.isArray(r)) return r; // array-of-recipes: recipe-safety fails closed
       if (r && typeof r === 'object') return r;
       if (typeof input.name === 'string' && typeof input.code === 'string') return input;
       return r; // undefined -> recipe-safety fails closed (unknown shape)

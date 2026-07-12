@@ -79,6 +79,22 @@ const tamperRejected = !verifyReceipt(tampered);
 line('\n4. TAMPERING IS CAUGHT (flip result fail->pass)');
 line(`   tampered verify -> ${tamperRejected ? 'INVALID (rejected)' : 'VALID (WRONG)'}`);
 
-const allOk = badVerdict?.block && !goodVerdict && strangerOk && tamperRejected;
-line(`\n${allOk ? 'PROVEN: the agent cannot decide, cannot forge, cannot tamper.' : 'FAILED'}`);
+// 5. authorship: pinning the trusted key rejects a receipt from any other key.
+const trusted = [receipt.publicKey];
+const otherReceipt = signVerdict(
+  { tool: 'pantry', verifier: 'recipe-safety', actionId: 'pantry:demo', observation: 'different' },
+  { ok: true, detail: 'forged pass' },
+);
+// (same process reuses one signer key, so simulate a foreign key by pinning to it)
+const foreignKey = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+const authorshipEnforced = verifyReceipt(receipt, trusted) && !verifyReceipt(receipt, [foreignKey]);
+line('\n5. AUTHORSHIP IS PINNED (trust a key, reject all others)');
+line(`   trusted-key verify -> ${authorshipEnforced ? 'ENFORCED' : 'NOT ENFORCED (WRONG)'}`);
+void otherReceipt;
+
+const allOk =
+  badVerdict?.block && !goodVerdict && strangerOk && tamperRejected && authorshipEnforced;
+line(
+  `\n${allOk ? 'PROVEN: the agent cannot decide, cannot forge, cannot tamper; and only a trusted key is accepted.' : 'FAILED'}`,
+);
 process.exit(allOk ? 0 : 1);

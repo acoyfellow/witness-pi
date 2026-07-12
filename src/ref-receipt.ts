@@ -41,6 +41,7 @@ export function canonical(v: unknown): string {
 }
 
 export type WitnessReceiptVerdict = {
+  schema: typeof SCHEMA; // RB-2: signed, not just an unsigned envelope discriminator
   version: '1';
   tool: string;
   verifier: string;
@@ -85,6 +86,7 @@ export function signVerdict(
 ): PortableReceipt {
   const { key, keyId } = signer();
   const receipt: WitnessReceiptVerdict = {
+    schema: SCHEMA,
     version: '1',
     tool: ctx.tool,
     verifier: ctx.verifier,
@@ -99,9 +101,23 @@ export function signVerdict(
   return { schema: SCHEMA, receipt, signature, publicKey: rawPub(key) };
 }
 
-// Independent verify — the same check a third party runs with only the envelope.
-export function verifyReceipt(pr: PortableReceipt): boolean {
+// RB-2: reject a receipt whose signed schema doesn't match the envelope schema.
+function schemaConsistent(pr: PortableReceipt): boolean {
+  return pr.receipt.schema === SCHEMA && pr.schema === SCHEMA;
+}
+
+// Independent verify.
+//
+// IMPORTANT (integrity vs authorship): without `trustedKeys`, this proves only
+// that the receipt was NOT TAMPERED after signing — it verifies against the key
+// the receipt carries. A forger can mint their own key and sign a `pass`
+// receipt that "verifies" against its own embedded key. To prove a TRUSTED
+// witness signed it, pass `trustedKeys` (the base64 public keys you accept);
+// verification then also requires `pr.publicKey` to be one of them.
+export function verifyReceipt(pr: PortableReceipt, trustedKeys?: readonly string[]): boolean {
   try {
+    if (!schemaConsistent(pr)) return false;
+    if (trustedKeys && !trustedKeys.includes(pr.publicKey)) return false;
     const der = Buffer.concat([
       Buffer.from('302a300506032b6570032100', 'hex'),
       Buffer.from(pr.publicKey, 'base64'),
