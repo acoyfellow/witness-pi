@@ -1,52 +1,91 @@
 # witness
 
-**A verdict the agent does not author.**
+**A coding agent shouldn't get to decide its own work is done.**
 
-Most agent loops trust the agent's own "done." `witness` routes the verdict
-through an independent checker the agent cannot control: before a designated
-action executes (e.g. a `pantry push`), a *witness* runs a real verifier
-against the artifact and returns pass/fail. The agent cannot mark its own work
-done — it can only produce an artifact that a witness then attests to, or not.
+`witness` is an extension for [Pi](https://github.com/earendil-works/pi-coding-agent),
+a coding agent. It watches for a specific action the agent tries to take, runs
+a real test against what the agent produced, and **blocks the action if the
+test fails**. The agent can't wave its own work through. Something it doesn't
+control has to pass it first.
 
-This is the [molt](../molt) discipline installed as a Pi extension: molt proved
-the pattern in a container (build → fault → heal → independent accept);
-`witness` makes the *accept* phase a standing gate in a normal session.
+## The problem
 
-## The three roles, kept clean
+I had an agent generate a small script and tell me it was finished. I didn't
+trust it, so I replayed 266 of my own past commands against it. It matched 36%
+of them — it kept adding a line I never actually type. The agent had no idea it
+was wrong, because nothing ever checked. It just said "done."
 
-| Role | Who | Rule |
-|---|---|---|
-| **produce** | the agent | writes the artifact (recipe, patch, tool) |
-| **store** | pantry | holds artifacts AND verifiers as versioned, named recipes |
-| **witness** | this extension | fetches a verifier, runs it *itself*, renders the verdict |
+That's the gap `witness` closes. "Done" now has to be earned against a test the
+agent can't edit or skip.
 
-**Pantry is the shelf, not the inspector.** `witness` may read verifier code
-*from* pantry (versioned, shareable), but it executes that code in its own
-harness — never via `pantry run`, whose own guardrail says it is not a
-sandbox. If the artifact under test could influence its own verifier, the
-"agent can't grade itself" premise collapses. So: pantry stores; witness
-judges.
+## How it works
 
-## What it hooks
+Pi lets an extension see each action *before* it runs and cancel it. `witness`
+uses that:
 
-Pi's `tool_call` event returns `{ block, reason }`. `witness` intercepts
-designated tool calls (default: `pantry` with `action: "push"`), runs the
-mapped verifier against the artifact, and **blocks the call with the failing
-detail as the reason** when the verdict is fail. A blocked push means the
-failing case comes back to the agent as the next thing it must address —
-bounded heal, not silent acceptance.
+1. The agent tries to do a watched action.
+2. `witness` grabs what the agent produced and runs a checker against it.
+3. Pass -> the action goes through. Fail -> the action is blocked, and the
+   agent is told exactly what failed.
 
-## Non-guarantees (honest)
+A blocked action isn't the end. The failure comes back to the agent as the next
+thing to fix. It tries again, and only gets through when it actually passes.
 
-- Not a sandbox. A verifier is trusted code; witness runs it in-process.
-  Untrusted verifiers need a real isolate.
-- Only gates the tool calls it is configured to watch. `bash` and external
-  paths bypass it, exactly like mutex-pi.
-- A witness that always passes is theater. Verifiers must be able to FAIL on
-  real artifacts, and witness records its own catch-rate so it can be deleted
-  if it never catches anything (see `docs/self-audit.md`).
+```
+agent: "here's the finished thing, let me save it"
+witness: runs the test
+         PASS -> saved
+         FAIL -> blocked, agent gets the reason, tries again
+```
 
-## Status
+## What's in the box
 
-Step 1 skeleton: the gate + verifier registry, with the recipe backtest wired
-as the first real verifier. Not yet installed globally.
+- A **checker registry** — checkers are small functions that take the agent's
+  work and return pass/fail with a reason.
+- Two checkers to start:
+  - one reads the code for obvious problems (a password typed straight into
+    the code, unsafe handling of input);
+  - one replays real past inputs and demands the output match exactly (this is
+    the one that caught the 36% above).
+- A **gate** that wires a checker to a watched action.
+
+## Does it actually work?
+
+Yes, and the tests prove it fails when it should:
+
+- **9 tests pass.**
+- It blocks the three real mistakes I made while building it: a secret typed
+  into code, unsafe input handling, and a tool claiming more permission than it
+  uses.
+- One test matters most: when the work *can't* pass the bar, `witness` keeps it
+  blocked instead of quietly letting it through. A checker that always says
+  "pass" is theater. These can say no.
+
+## What it does not do
+
+- **It only watches the actions you point it at.** By default that's one. The
+  agent can still run other commands that `witness` never sees. This is a
+  pattern shown on one gate, not a wall around everything.
+- **A checker is trusted code that runs on your machine.** Don't wire in a
+  checker you didn't read.
+- **A checker that never catches anything is dead weight.** `witness` records
+  how often it blocks so you can delete it if it earns nothing. See
+  [docs/self-audit.md](docs/self-audit.md).
+
+## Install
+
+Clone it into Pi's extensions folder (Pi loads anything there automatically):
+
+```sh
+git clone https://github.com/acoyfellow/witness-pi \
+  ~/.pi/agent/extensions/witness
+```
+
+## Run the tests
+
+```sh
+bun install
+bun test
+```
+
+MIT.
