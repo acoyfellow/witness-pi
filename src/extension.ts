@@ -8,8 +8,8 @@ import { dirname, join } from 'node:path';
 import { recipeBacktest } from '../verifiers/recipe-backtest.ts';
 import { recipeSafety } from '../verifiers/recipe-safety.ts';
 import { installWitness } from './gate.ts';
-import * as registry from './registry.ts';
 import { signVerdict } from './ref-receipt.ts';
+import * as registry from './registry.ts';
 import type { GateRule, Verdict } from './types.ts';
 
 // Every verdict (pass or fail) is appended here so a live block leaves disk
@@ -65,7 +65,11 @@ export const DEFAULT_RULES: GateRule[] = [
       if (typeof r === 'string') {
         const s = r.trim();
         if (s.startsWith('{')) {
-          try { return JSON.parse(s); } catch { return r; }
+          try {
+            return JSON.parse(s);
+          } catch {
+            return r;
+          }
         }
         return r;
       }

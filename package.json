@@ -19,9 +19,10 @@
     ]
   },
   "scripts": {
-    "check": "biome check src tests verifiers && tsc --noEmit && bun test tests",
+    "check": "biome check src tests verifiers scripts && tsc --noEmit && bun test tests",
     "test": "bun test tests",
-    "format": "biome format --write src tests verifiers"
+    "format": "biome format --write src tests verifiers scripts",
+    "prove": "bun scripts/prove.ts"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "^0.80.0"

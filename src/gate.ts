@@ -42,7 +42,13 @@ export async function evaluate(
     const observation = safeStringify(artifact);
     for (const name of rule.verifiers) {
       const verdict = await registry.get(name)(artifact);
-      options.onVerdict?.({ tool: event.toolName, verifier: name, verdict, observation, at: now() });
+      options.onVerdict?.({
+        tool: event.toolName,
+        verifier: name,
+        verdict,
+        observation,
+        at: now(),
+      });
       if (!verdict.ok) {
         return {
           block: true,
@@ -55,7 +61,11 @@ export async function evaluate(
 }
 
 function safeStringify(v: unknown): string {
-  try { return JSON.stringify(v) ?? String(v); } catch { return String(v); }
+  try {
+    return JSON.stringify(v) ?? String(v);
+  } catch {
+    return String(v);
+  }
 }
 
 // Install the gate on a Pi ExtensionAPI (loose type to avoid a hard dep here).

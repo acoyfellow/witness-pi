@@ -49,37 +49,65 @@ witness: runs the test
     the one that caught the 36% above).
 - A **gate** that wires a checker to a watched action.
 
-## Does it actually work?
+## Prove it yourself, in one command
 
-Three levels of proof, weakest to strongest:
+```sh
+bun install
+bun run prove
+```
 
-1. **13 unit tests pass.** They block the three real mistakes I made while
-   building it (a secret typed into code, unsafe input handling, a tool
-   claiming more permission than it uses) and allow known-good work. One test
-   matters most: when the work *can't* pass the bar, `witness` keeps it blocked
-   instead of quietly letting it through. A checker that always says "pass" is
-   theater. These can say no.
+It runs the real gate over a bad and a good action and prints:
 
-2. **A test loads the extension the way the agent does** — imports it, hands it
-   the same object the agent runtime does, and fires a real action through the
-   handler it registered. That proves the wiring, not just the checker.
+```
+1. THE GATE DECIDES (not the agent)
+   bad  push -> BLOCKED: witness[recipe-safety] blocked pantry: recipe 'leaky' embeds a hardcoded secret
+   good push -> ALLOWED
+2. THE VERDICT IS A SIGNED RECEIPT (ref/e23-portable-receipt@1)
+   result=fail  keyId=witness-b6253625  signature=0DLx98E/l42HLzg0SenpObAy...
+3. A STRANGER RE-VERIFIES IT (no witness code, only node:crypto + public key)
+   independent verify -> VALID
+4. TAMPERING IS CAUGHT (flip result fail->pass)
+   tampered verify -> INVALID (rejected)
 
-3. **A real agent session was actually blocked.** I asked a live agent to save
-   a recipe that over-declared its permissions. It got stopped with:
+PROVEN: the agent cannot decide, cannot forge, cannot tamper.
+```
 
-   ```
-   witness[recipe-safety] blocked pantry: recipe 'witness_live_probe'
-   declares machine.shell but only returns a string; use workspace.none
-   ```
+That is the whole claim, executable: **the agent can't decide its own work is
+done, can't forge a passing verdict, and can't tamper one after the fact.**
 
-   Every verdict is written to `~/.pi/witness/receipts.jsonl`, so a block
-   leaves a timestamped record on disk:
+## Why the verdict is trustworthy
 
-   ```json
-   {"tool":"pantry","verifier":"recipe-safety",
-    "verdict":{"ok":false,"detail":"...declares machine.shell but only returns a string..."},
-    "at":"2026-07-12T10:41:14.814Z"}
-   ```
+Every verdict is written to `~/.pi/witness/receipts.jsonl` as a **signed,
+portable receipt** (`ref/e23-portable-receipt@1`): Ed25519-signed by a key the
+agent never holds, and verifiable by anyone with only `{receipt, signature,
+publicKey}` — no witness code, no shared secret.
+
+```json
+{"schema":"ref/e23-portable-receipt@1",
+ "receipt":{"tool":"pantry","verifier":"recipe-safety","result":"fail",
+            "detail":"recipe 'x' embeds a hardcoded secret","keyId":"witness-..."},
+ "signature":"...","publicKey":"..."}
+```
+
+So a block isn't "trust me, it failed" — it's a receipt a third party (a
+reviewer, a CI gate, an auditor) can re-check offline and cannot be forged.
+
+## The other layers of proof
+
+- **13 unit tests pass.** They block the three real mistakes made while building
+  it (a secret in code, unsafe input handling, a tool over-declaring
+  permission), allow known-good work, and — the one that matters — keep work
+  *blocked* when it can't pass. A checker that always says "pass" is theater;
+  these can say no. One test verifies the signed receipt and proves tampering
+  fails.
+- **A test loads the extension the way Pi does** — imports it, hands it the same
+  object the runtime does, fires a real action through the registered handler.
+  Proves the wiring, not just the checker.
+- **A real agent session was blocked live**, leaving a signed receipt on disk
+  (`witness[recipe-safety] blocked pantry: ... embeds a hardcoded secret`).
+- **It runs capability-separated on a fresh Cloudflare account** — see
+  [examples/fresh-account-e2e](examples/fresh-account-e2e/): the signing key
+  lives where the agent can't reach it, proven end-to-end on a throwaway account.
 
 ## What it does not do
 
