@@ -1,0 +1,9 @@
+{
+  "name": "h40-actor",
+  "main": "index.ts",
+  "compatibility_date": "2026-04-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "kv_namespaces": [{ "binding": "ARTIFACTS", "id": "YOUR_TEMP_KV_NAMESPACE_ID" }],
+  "services": [{ "binding": "REFEREE", "service": "h40-referee", "entrypoint": "RefereeApi" }]
+}

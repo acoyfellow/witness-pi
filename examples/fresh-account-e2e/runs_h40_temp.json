@@ -1,0 +1,62 @@
+{
+  "experiment": "h40-temp-account (LIVE temp account: Obsidian Chartreuse)",
+  "cases": [
+    {
+      "name": "genuine (H01+H02+H03+H04+H07 on KV)",
+      "admit": true,
+      "reason": "authorized+matched+signed",
+      "expect": true,
+      "ok": true,
+      "verdictSigValid": true
+    },
+    {
+      "name": "H07 reordered keys match",
+      "admit": true,
+      "reason": "authorized+matched+signed",
+      "expect": true,
+      "ok": true
+    },
+    {
+      "name": "H02 actor self-declares intent",
+      "admit": false,
+      "reason": "intent-not-authorized",
+      "expect": false,
+      "ok": true
+    },
+    {
+      "name": "H02 out-of-policy target",
+      "admit": false,
+      "reason": "target-not-allowed",
+      "expect": false,
+      "ok": true
+    },
+    {
+      "name": "outcome mismatch",
+      "admit": false,
+      "reason": "outcome-mismatch",
+      "expect": false,
+      "ok": true
+    },
+    {
+      "name": "H04 replay nonce",
+      "admit": false,
+      "reason": "replay",
+      "expect": false,
+      "ok": true
+    },
+    {
+      "name": "H02 expired",
+      "admit": false,
+      "reason": "expired",
+      "expect": false,
+      "ok": true
+    }
+  ],
+  "actorBindings": [
+    "ARTIFACTS",
+    "REFEREE"
+  ],
+  "verdictSigValid": true,
+  "actorCannotReachKeyOrDO": true,
+  "verdict": "H40-VERIFIED"
+}
