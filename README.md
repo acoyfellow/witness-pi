@@ -26,23 +26,30 @@ cannot edit or skip.
 
 ## How it works
 
-Pi lets an extension see each action *before* it runs and cancel it. `witness`
-uses that:
+Pi lets an extension inspect each action before it runs and cancel it.
+`witness` uses that hook:
 
-1. The agent tries to do a watched action.
-2. `witness` grabs what the agent produced and runs a checker against it.
-3. Pass -> the action goes through. Fail -> the action is blocked, and the
-   agent is told exactly what failed.
+1. The agent tries a watched action.
+2. `witness` takes what the agent produced and runs a checker on it.
+3. Pass -> the action runs. Fail -> it's cancelled, and the agent is handed
+   the reason.
 
-A blocked action isn't the end. The failure comes back to the agent as the next
-thing to fix. It tries again, and only gets through when it actually passes.
+Concretely: the agent tries to save a recipe with an API key pasted into the
+code. `witness` reads the code, finds the key, and cancels the save with
+`blocked: recipe 'x' embeds a hardcoded secret`. The agent didn't get to
+overrule that; it only gets through once the key is gone.
 
-```
-agent: "here's the finished thing, let me save it"
-witness: runs the test
-         PASS -> saved
-         FAIL -> blocked, agent gets the reason, tries again
-```
+## What it costs you
+
+- **False blocks.** Every verdict, pass or fail, is logged to
+  `~/.pi/witness/receipts.jsonl`. Read it to see whether the gate ever stopped
+  good work; if it does, tune or delete the checker
+  ([docs/self-audit.md](docs/self-audit.md)).
+- **Loop cost.** A block adds one agent retry. Gate the actions where a wrong
+  result is expensive — a saved recipe, a deploy — not every keystroke.
+- **Checker cost.** Writing a checker can be as hard as the task. It pays off
+  when the action repeats or a wrong result is costly. For one-off work, skip
+  it.
 
 ## What's in the box
 
