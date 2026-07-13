@@ -10,13 +10,19 @@ control has to pass it first.
 
 ## The problem
 
-I had an agent generate a small script and tell me it was finished. I didn't
-trust it, so I replayed 266 of my own past commands against it. It matched 36%
-of them — it kept adding a line I never actually type. The agent had no idea it
-was wrong, because nothing ever checked. It just said "done."
+A coding agent decides for itself when a task is done. Nothing checks the
+claim, so "done" means only that the agent stopped working — not that the work
+is correct.
 
-That's the gap `witness` closes. "Done" now has to be earned against a test the
-agent can't edit or skip.
+The failure is easy to reproduce. Point an agent at a task, let it report
+success, then replay real inputs against what it produced. A recipe generated
+this way matched only 36% of the commands it was meant to reproduce: it added a
+line that was never part of the real command. The output looked finished and
+was wrong, and the agent had no way to know, because the loop had no step that
+could say no.
+
+`witness` adds that step. "Done" has to be earned against a test the agent
+cannot edit or skip.
 
 ## How it works
 
@@ -45,8 +51,8 @@ witness: runs the test
 - Two checkers to start:
   - one reads the code for obvious problems (a password typed straight into
     the code, unsafe handling of input);
-  - one replays real past inputs and demands the output match exactly (this is
-    the one that caught the 36% above).
+  - one replays real past inputs and demands the output match exactly (the
+    check that surfaces the 36% case above).
 - A **gate** that wires a checker to a watched action.
 
 ## Prove it yourself, in one command
@@ -132,8 +138,8 @@ Run the tests with `bun install && bun test`, or the one-command proof with
 - **The built-in `recipe-safety` checker is a cheap syntactic screen, not a
   secret scanner.** It catches the honest mistake (a key pasted into a recipe)
   and one split-prefix evasion. A motivated evader (base64, char codes, fetch a
-  key at runtime) gets past it — we dogfooded this and confirmed it. Don't rely
-  on it to stop exfiltration; use it to catch slips.
+  key at runtime) gets past it — this is confirmed, not assumed. Don't rely on
+  it to stop exfiltration; use it to catch slips.
 - **A checker is trusted code that runs on your machine.** Don't wire in a
   checker you didn't read. A malicious checker is your own code running.
 - **A verdict "verifies" two different ways.** Without a trusted-key list, it
