@@ -1,0 +1,19 @@
+verifiers/recipe-safety.ts
+  s_e050e2bde8a246::t_90150934cab5eb 8-9,11-15,29-83,136-139,141-149,151-156,159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3d0bca2ef8371d8892d0ea52f683c5dbd0ebefeb",
+  "prompts": {},
+  "sessions": {
+    "s_e050e2bde8a246": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019e9296-4ed4-786c-96d1-b8237d516f79",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
