@@ -143,10 +143,14 @@ Run the tests with `bun install && bun test`, or the one-command proof with
   agent can still run other commands `witness` never sees. This is a gate, not a
   sandbox.
 - **The built-in `recipe-safety` checker is a cheap syntactic screen, not a
-  secret scanner.** It catches the honest mistake (a key pasted into a recipe)
-  and one split-prefix evasion. A motivated evader (base64, char codes, fetch a
-  key at runtime) gets past it — this is confirmed, not assumed. Don't rely on
-  it to stop exfiltration; use it to catch slips.
+  secret scanner or sandbox.** It catches the honest mistake (a key pasted into
+  a recipe) and one split-prefix evasion. Capability decisions use executable
+  tokens: comments and docstrings do not count, and a host recipe is not
+  downgraded because it returns a string or parsed JSON. Direct `child_process`
+  access requires the explicit `machine.exec` capability; use the sanctioned
+  `machine.shell` binding when declaring `machine.shell`. A motivated evader
+  (base64, char codes, fetch a key at runtime) gets past it — this is confirmed,
+  not assumed. Don't rely on it to stop exfiltration; use it to catch slips.
 - **A checker is trusted code that runs on your machine.** Don't wire in a
   checker you didn't read. A malicious checker is your own code running.
 - **A verdict "verifies" two different ways.** Without a trusted-key list, it

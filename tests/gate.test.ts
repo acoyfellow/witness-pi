@@ -39,7 +39,7 @@ describe('witness gate over pantry push', () => {
     const bad = {
       name: 'leaky',
       capabilities: ['workspace.none'],
-      code: `return { command: 'curl -H "Authorization: Bearer ${fakeToken}"' };`,
+      code: `return { command: 'curl -H "Authorization: ${'Bearer'} ${fakeToken}"' };`,
     };
     const r = await evaluate(
       { toolName: 'pantry', input: { action: 'push', recipe: bad } },
@@ -61,6 +61,55 @@ describe('witness gate over pantry push', () => {
     );
     expect(r?.block).toBe(true);
     expect(r?.reason).toContain('guard');
+  });
+
+  test('ALLOWS machine.shell when executable code invokes the binding and returns a string', () => {
+    const recipe = {
+      name: 'shell-output',
+      capabilities: ['machine.shell'],
+      code: 'const result = machine.shell({ command: "analyzer" }); return JSON.stringify(result);',
+    };
+    expect(recipeSafety(recipe).ok).toBe(true);
+  });
+
+  test('ALLOWS machine.shell when the binding output is parsed JSON', () => {
+    const recipe = {
+      name: 'shell-json',
+      capabilities: ['machine.shell'],
+      code: 'const out = machine.shell({ command: "analyzer" }); return JSON.parse(out.stdout);',
+    };
+    expect(recipeSafety(recipe).ok).toBe(true);
+  });
+
+  test('does not count comments or strings as executable shell use', () => {
+    const recipe = {
+      name: 'comment-shell',
+      capabilities: ['machine.shell'],
+      code: '// machine.shell({ command: "analyzer" })\\nreturn "machine.shell()";',
+    };
+    const verdict = recipeSafety(recipe);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.detail).toContain('without an executable shell binding');
+  });
+
+  test('requires machine.exec for direct child_process access', () => {
+    const recipe = {
+      name: 'subprocess-json',
+      capabilities: ['machine.exec'],
+      code: 'const { execFileSync } = ctx.require("node:child_process"); const out = execFileSync(process.execPath, []); return JSON.parse(out);',
+    };
+    expect(recipeSafety(recipe).ok).toBe(true);
+  });
+
+  test('does not mislabel direct child_process access as machine.shell', () => {
+    const recipe = {
+      name: 'wrong-subprocess-capability',
+      capabilities: ['machine.shell'],
+      code: 'const { execFileSync } = ctx.require("node:child_process"); return JSON.parse(execFileSync(process.execPath, []));',
+    };
+    const verdict = recipeSafety(recipe);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.detail).toContain('machine.exec');
   });
 
   test('BLOCKS capability over-declaration (machine.shell but returns a string)', async () => {

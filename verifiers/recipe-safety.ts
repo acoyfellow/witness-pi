@@ -5,13 +5,14 @@
 //   - path traversal / absolute-path escape in a `project`-style input
 //   - shell metacharacters that enable command injection
 //   - a hardcoded secret baked into the recipe code
-//   - a `machine.shell` capability on a recipe that only returns a string
-//     (capability over-declaration — the bug that tripped the first push)
+//   - a `machine.shell` capability with no executable shell binding
+//     (capability over-declaration — return shape alone is not evidence)
 //
-// SCOPE (honest): this is a cheap SYNTACTIC SCREEN, not a secret scanner. It
-// catches the honest mistake (paste a key) and one common evasion (splitting a
-// prefix across a `+`). A motivated evader (base64, char codes, fetch-at-
-// runtime) will get past it. Do not rely on it to stop exfiltration.
+// SCOPE (honest): this is a cheap SYNTACTIC SCREEN, not a secret scanner or
+// sandbox. It catches the honest mistake (paste a key), one common evasion
+// (splitting a prefix across a `+`), and capability mismatches visible in
+// executable tokens. A motivated evader (base64, char codes, fetch-at-runtime)
+// will get past it. Do not rely on it to stop exfiltration.
 //
 // Pure and deterministic: takes the recipe object, returns a Verdict. No I/O.
 
@@ -24,6 +25,61 @@ const SECRET_PATTERNS = [
   /\bAKIA[0-9A-Z]{16}\b/,
   /Bearer\s+[A-Za-z0-9._-]{20,}/i,
 ];
+
+// Remove comments and quoted literals before making capability-use claims.
+// Literal values are intentionally retained by removeCommentsOnly below when
+// checking approved module loads; a docstring saying "machine.shell()" must not
+// count as an executable host call.
+function removeCommentsAndStrings(code: string): string {
+  let out = '';
+  let quote: "'" | '"' | '`' | null = null;
+  let escaped = false;
+  for (let i = 0; i < code.length; i++) {
+    const char = code[i];
+    const next = code[i + 1];
+    if (!quote && char === '/' && next === '/') {
+      out += '  ';
+      i += 1;
+      while (i + 1 < code.length && code[i + 1] !== '\\n') {
+        out += ' ';
+        i += 1;
+      }
+      continue;
+    }
+    if (!quote && char === '/' && next === '*') {
+      out += '  ';
+      i += 1;
+      while (i + 1 < code.length && !(code[i + 1] === '*' && code[i + 2] === '/')) {
+        out += code[i + 1] === '\\n' ? '\\n' : ' ';
+        i += 1;
+      }
+      if (i + 2 < code.length) {
+        out += '  ';
+        i += 2;
+      }
+      continue;
+    }
+    if (quote) {
+      out += char === '\\n' ? '\\n' : ' ';
+      if (escaped) escaped = false;
+      else if (char === '\\\\') escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+      escaped = false;
+      out += ' ';
+      continue;
+    }
+    out += char;
+  }
+  return out;
+}
+
+function removeCommentsOnly(code: string): string {
+  return code.replace(/\/\/[^\\n]*|\/\\*[\\s\\S]*?\\*\//g, ' ');
+}
 
 export function recipeSafety(artifact: unknown): Verdict {
   // FAIL CLOSED (RB-1): anything that isn't a single checkable recipe object is
@@ -77,14 +133,30 @@ export function recipeSafety(artifact: unknown): Verdict {
     };
   }
 
-  // 2. capability over-declaration: declares machine.shell but never uses a
-  //    shell binding (only builds/returns a command string).
+  // 2. Capability checks must follow executable host use, not the returned
+  //    value. Returning a string or parsed JSON after a shell call is still a
+  //    legitimate machine.shell recipe. Comments/docstrings/string literals
+  //    are removed before this check to avoid witness false positives.
   const caps = Array.isArray(recipe.capabilities) ? (recipe.capabilities as string[]) : [];
-  const usesShellBinding = /\b(machine\.shell|ctx\.bindings|shell\s*\()/.test(code);
+  const executableCode = removeCommentsAndStrings(code);
+  const codeWithoutComments = removeCommentsOnly(code);
+  const usesShellBinding =
+    /\bmachine\s*\.\s*shell\s*\(/.test(executableCode) ||
+    /\bctx\s*\.\s*bindings\s*(?:\.\s*machine\s*)?\.\s*shell\s*\(/.test(executableCode);
+  const loadsChildProcess =
+    /\b(?:ctx\s*\.\s*)?require\s*\(\s*['"`]node:child_process['"`]\s*\)/.test(
+      codeWithoutComments,
+    ) || /\bimport\s*\(\s*['"`]node:child_process['"`]\s*\)/.test(codeWithoutComments);
   if (caps.includes('machine.shell') && !usesShellBinding) {
+    const detail = loadsChildProcess
+      ? `recipe '${name}' uses direct child_process access but declares machine.shell; declare machine.exec or use the machine.shell binding`
+      : `recipe '${name}' declares machine.shell without an executable shell binding; use workspace.none only when no host access is required`;
+    return { ok: false, detail, evidence: { capabilities: caps, loadsChildProcess } };
+  }
+  if (loadsChildProcess && !caps.includes('machine.exec')) {
     return {
       ok: false,
-      detail: `recipe '${name}' declares machine.shell but only returns a string; use workspace.none`,
+      detail: `recipe '${name}' loads child_process without machine.exec; direct subprocess access requires the sanctioned machine.exec capability`,
       evidence: { capabilities: caps },
     };
   }
