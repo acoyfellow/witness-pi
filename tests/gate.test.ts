@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 import { DEFAULT_RULES } from '../src/extension.ts';
 import { evaluate } from '../src/gate.ts';
 import * as registry from '../src/registry.ts';
+import { commandSafety } from '../verifiers/command-safety.ts';
 import { recipeSafety } from '../verifiers/recipe-safety.ts';
 
 const opts = () => ({ rules: DEFAULT_RULES });
@@ -21,6 +22,7 @@ const goodRecipe = {
 beforeEach(() => {
   registry._reset();
   registry.register('recipe-safety', recipeSafety);
+  registry.register('command-safety', commandSafety);
 });
 
 describe('witness gate over pantry push', () => {
@@ -134,8 +136,13 @@ describe('witness gate over pantry push', () => {
     expect(r).toBeUndefined();
   });
 
-  test('IGNORES unrelated tools', async () => {
+  test('ALLOWS a safe bash command', async () => {
     const r = await evaluate({ toolName: 'bash', input: { command: 'ls' } }, opts());
+    expect(r).toBeUndefined();
+  });
+
+  test('IGNORES tools with no rule', async () => {
+    const r = await evaluate({ toolName: 'read', input: { path: 'src/a.ts' } }, opts());
     expect(r).toBeUndefined();
   });
 });
