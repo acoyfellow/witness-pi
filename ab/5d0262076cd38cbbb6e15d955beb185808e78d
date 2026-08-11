@@ -1,0 +1,25 @@
+src/extension.ts
+  s_4667e7f6e7a043::t_73cf255f06f1af 8-13,95-109,117
+tests/command-safety.test.ts
+  s_4667e7f6e7a043::t_826a40135d4726 1-51
+tests/gate.test.ts
+  s_4667e7f6e7a043::t_01a9092fd9a606 5,25,139,143-147
+verifiers/command-safety.ts
+  s_4667e7f6e7a043::t_aa2e56f8dc5b95 1-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ab5d0262076cd38cbbb6e15d955beb185808e78d",
+  "prompts": {},
+  "sessions": {
+    "s_4667e7f6e7a043": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fd3e5-115f-7258-bf75-ed9feae57a66",
+        "model": "grok-4.6"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
