@@ -6,6 +6,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { recipeBacktest } from '../verifiers/recipe-backtest.ts';
+import { recipeSafetyWasm, wasmReady } from '../verifiers/recipe-safety-wasm.ts';
 import { recipeSafety } from '../verifiers/recipe-safety.ts';
 import { installWitness } from './gate.ts';
 import { signVerdict } from './ref-receipt.ts';
@@ -88,7 +89,9 @@ export const DEFAULT_RULES: GateRule[] = [
 ];
 
 export function registerBuiltins(): void {
-  if (!registry.has('recipe-safety')) registry.register('recipe-safety', recipeSafety);
+  if (!registry.has('recipe-safety')) {
+    registry.register('recipe-safety', wasmReady() ? recipeSafetyWasm : recipeSafety);
+  }
   if (!registry.has('recipe-backtest')) registry.register('recipe-backtest', recipeBacktest);
 }
 
