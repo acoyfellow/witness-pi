@@ -1,0 +1,39 @@
+src/extension.ts
+  s_4667e7f6e7a043::t_2b52256f80200f 9,92-94
+tests/recipe-safety-wasm.test.ts
+  s_4667e7f6e7a043::t_d99d8d8549ddb5 1-43
+verifiers/recipe-safety-wasm.ts
+  s_4667e7f6e7a043::t_6629e1ed879a2f 1-115
+wasm/.gitignore
+  s_8690fd4f27f820::t_4d7b2d30963d0b 1-3
+wasm/build.sh
+  s_8690fd4f27f820::t_70047f6d58673e 1-29
+wasm/recipe_safety.sha256
+  s_4667e7f6e7a043::t_cd3f75868c5233 1
+wasm/src-crate/src/lib.rs
+  s_4667e7f6e7a043::t_c6defdbcfddc05 1-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f0dba9fb149998b95a3311e8f5accd82f32af37c",
+  "prompts": {},
+  "sessions": {
+    "s_4667e7f6e7a043": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019fd3e5-115f-7258-bf75-ed9feae57a66",
+        "model": "grok-4.6"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    },
+    "s_8690fd4f27f820": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019ff0b8-7b3f-7d70-b54a-fd656bb61416",
+        "model": "grok-4.6"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
