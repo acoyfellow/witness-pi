@@ -1,0 +1,7 @@
+[toolchain]
+# Pinned: wasm/recipe_safety.sha256 is the hash of the module built by this exact
+# toolchain (verified: 1.97.1 reproduces it; 1.97.0, 1.98.0 and 1.99.1 do not).
+# Bumping the channel changes the wasm bytes: re-run ./wasm/build.sh and update the hash.
+channel = "1.97.1"
+profile = "minimal"
+targets = ["wasm32-unknown-unknown"]
