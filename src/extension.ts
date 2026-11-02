@@ -5,7 +5,14 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import {
+  artifactFromBash,
+  artifactFromEdit,
+  artifactFromWrite,
+  commandSafety,
+} from '../verifiers/command-safety.ts';
 import { recipeBacktest } from '../verifiers/recipe-backtest.ts';
+import { recipeSafetyWasm, wasmReady } from '../verifiers/recipe-safety-wasm.ts';
 import { recipeSafety } from '../verifiers/recipe-safety.ts';
 import { installWitness } from './gate.ts';
 import { signVerdict } from './ref-receipt.ts';
@@ -85,11 +92,29 @@ export const DEFAULT_RULES: GateRule[] = [
     },
     verifiers: ['recipe-safety'],
   },
+  {
+    tool: 'bash',
+    artifactOf: artifactFromBash,
+    verifiers: ['command-safety'],
+  },
+  {
+    tool: 'write',
+    artifactOf: artifactFromWrite,
+    verifiers: ['command-safety'],
+  },
+  {
+    tool: 'edit',
+    artifactOf: artifactFromEdit,
+    verifiers: ['command-safety'],
+  },
 ];
 
 export function registerBuiltins(): void {
-  if (!registry.has('recipe-safety')) registry.register('recipe-safety', recipeSafety);
+  if (!registry.has('recipe-safety')) {
+    registry.register('recipe-safety', wasmReady() ? recipeSafetyWasm : recipeSafety);
+  }
   if (!registry.has('recipe-backtest')) registry.register('recipe-backtest', recipeBacktest);
+  if (!registry.has('command-safety')) registry.register('command-safety', commandSafety);
 }
 
 // Pi loads this via auto-discovery (index.ts re-exports it).
